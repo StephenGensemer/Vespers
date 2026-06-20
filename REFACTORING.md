@@ -14,10 +14,12 @@ Defines the canonical data structures:
 
 ### `vespers_parser.py`
 Extracts text from the universalis ebook format into `VespersService`:
-- **`parse_vespers_text(service_name, parts)`** - Main entry point
+- **`parse_vespers_text(service_name, parts, readings_parts=None)`** - Main entry point
 - **`_extract_all_data()`** - Consolidates all existing parsing logic
 
 **Key idea**: Parser only reads text - it does NOT load external files. Psalm objects are created with empty `text` and `tone` fields, which get filled later by the enricher.
+
+**Note on readings**: The second reading comes from a separate file. Pass `readings_parts` to include it; if omitted, it will be empty.
 
 ## How to Use (Now)
 
@@ -27,19 +29,31 @@ Currently, the old code still works. To use the new structure:
 from vespers_format import parse_universalis_ebook
 from vespers_parser import parse_vespers_text
 
-# 1. Parse the year file (existing code)
+# 1. Parse the year files (existing code)
 all_services = parse_universalis_ebook('Scripts_2026/uy2026.txt')
-parts = all_services['12th Sunday in Ordinary Time']
+all_readings = parse_universalis_ebook('Scripts_2026/uy2026_readings.txt', n_parts=100)
 
-# 2. Parse to VespersService (NEW)
-service = parse_vespers_text('12th Sunday in Ordinary Time', parts)
+# 2. Get the service and its readings
+service_name = '12th Sunday in Ordinary Time'
+parts = all_services[service_name]
+readings_parts = all_readings[service_name]  # Optional
 
-# 3. Inspect the structured data
-print(service.name)           # "12th Sunday in Ordinary Time"
-print(service.date_str)       # "21 June 2026"
-print(len(service.psalms))    # 3
-print(service.psalms[0].reference)  # "109:1-5,7"
+# 3. Parse to VespersService (NEW)
+service = parse_vespers_text(service_name, parts, readings_parts)
+
+# 4. Inspect the structured data
+print(service.name)                          # "12th Sunday in Ordinary Time"
+print(service.date_str)                      # "21 June 2026"
+print(len(service.psalms))                   # 3
+print(service.psalms[0].reference)           # "109:1-5,7"
+print(len(service.reading_second))           # Lines from second reading
 ```
+
+## How Readings Work
+
+The readings file (`uy2026_readings.txt`) is parsed separately with `n_parts=100` to capture the full "Office of Readings" section. When you pass `readings_parts` to `parse_vespers_text()`, it extracts the second reading using the existing `get_2nd_reading()` function.
+
+If the readings file is not available or parsing fails, `service.reading_second` will simply be an empty list (no error).
 
 ## Next Steps (Phases 2-4)
 
@@ -71,7 +85,7 @@ All together:
 
 ```python
 # run_vespers.py
-service = parse_vespers_text(service_name, parts)
+service = parse_vespers_text(service_name, parts, readings_parts)
 service = enricher.enrich(service)
 latex = renderer.render(service)
 ```
@@ -83,15 +97,17 @@ You can test that the parsing produces the same data as before:
 ```python
 # Old way
 d = get_vespers_data_universalis(name, parts)
+d.update(get_2nd_reading(sections_readings[name]))
 
 # New way
-service = parse_vespers_text(name, parts)
+service = parse_vespers_text(name, parts, readings_parts)
 
 # Compare (before enrichment):
 assert service.name == d['name']
 assert service.date_str == d['date_string']
 assert service.psalms[0].reference == d['ps A']
 assert service.psalms[0].name == d['ps A name']
+assert service.reading_second == d['2read']
 # ... etc
 ```
 
