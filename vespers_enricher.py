@@ -11,7 +11,7 @@ import fnmatch
 import os
 
 from vespers_data import VespersService, Psalm
-from vespers_format import get_psalm_file, get_antiphon_tex
+from vespers_format import get_antiphon_tex
 
 
 class VespersEnricher:
@@ -19,7 +19,7 @@ class VespersEnricher:
     
     Responsibilities:
     - Load psalm texts from psalm_texts/ directory
-    - Determine tone from antiphon filename or use default
+    - Determine tone from antiphon filename
     - Get LaTeX for gregorioscore antiphons
     - Cache loaded psalms to avoid re-reading
     - Handle missing files gracefully
@@ -30,12 +30,13 @@ class VespersEnricher:
         
         Args:
             psalm_dir: Path to directory containing psalm text files
-                       (e.g., './psalm_texts' with files like 'Ps 109;1-5,7_7x.txt')
+                       (e.g., './psalm_texts' with files like 'Ps 109;1-5,7.txt')
             antiphon_dir: Path to directory containing .gabc antiphon files
+                         (e.g., 'antiphons' with files like 'In_splendoribus-1a.gabc')
         """
         self.psalm_dir = Path(psalm_dir)
         self.antiphon_dir = Path(antiphon_dir)
-        self._psalm_cache: Dict[str, Tuple[list, str]] = {}  # Cache for loaded psalms
+        self._psalm_cache: Dict[str, list] = {}  # Cache for loaded psalm texts
         self._antiphon_cache: Dict[str, str] = {}  # Cache for antiphon LaTeX
     
     def enrich(self, service: VespersService) -> VespersService:
@@ -43,7 +44,7 @@ class VespersEnricher:
         
         Populates:
         - Each psalm.text with verses
-        - Each psalm.tone with the liturgical tone
+        - Each psalm.tone with the liturgical tone (from antiphon filename)
         - Each psalm.score_latex with gregorioscore LaTeX
         - service.magnificat_score_latex
         
@@ -68,27 +69,30 @@ class VespersEnricher:
     def _enrich_psalm(self, psalm: Psalm) -> None:
         """Load psalm text and determine tone for a single psalm.
         
+        Tone is determined by looking for the antiphon file in the antiphons folder.
+        
         Args:
             psalm: Psalm object to enrich (modified in place)
         """
-        # Load psalm verses from file
-        psalm.text, default_tone = self._load_psalm_file(psalm.reference)
-        
-        # Determine tone: try to get from antiphon file, fall back to default
+        # First: find the antiphon file and extract tone from its filename
         antiphon_file = self._find_antiphon_file(psalm.antiphon_latin)
         if antiphon_file:
             psalm.tone = self._extract_tone_from_filename(antiphon_file)
             psalm.score_latex = self._get_antiphon_score(psalm.antiphon_latin)
         else:
-            # Use default tone from psalm file
-            psalm.tone = default_tone[0] if default_tone else "1"
-            psalm.score_latex = self._get_tone_score(default_tone)
+            # Antiphon not found - use default tone "1"
+            psalm.tone = "1"
+            psalm.score_latex = ""
+            print(f"Warning: Could not find antiphon file for: {psalm.antiphon_latin[:60]}...")
+        
+        # Second: load the psalm verses from the text file
+        psalm.text = self._load_psalm_file(psalm.reference)
     
-    def _load_psalm_file(self, psalm_ref: str) -> Tuple[list, str]:
-        """Load psalm verses and return default tone.
+    def _load_psalm_file(self, psalm_ref: str) -> list:
+        """Load psalm verses from file.
         
         Handles Mac-style filenames where colons are replaced with semicolons.
-        Example: psalm_ref "109:1-5,7" matches file "Ps 109;1-5,7_7x.txt"
+        Example: psalm_ref "109:1-5,7" matches file "Ps 109;1-5,7.txt"
         
         Uses cache to avoid re-reading the same psalm.
         
@@ -96,13 +100,13 @@ class VespersEnricher:
             psalm_ref: Reference like "109:1-5,7" or "111:1-10"
         
         Returns:
-            Tuple of (psalm_text_lines, default_tone_code)
+            List of psalm text lines (all lines from the file)
         """
         if psalm_ref in self._psalm_cache:
             return self._psalm_cache[psalm_ref]
         
         # Convert reference to Mac-friendly filename pattern
-        # "109:1-5,7" -> "Ps 109;1-5,7" (replace : with ;)
+        # "109:1-5,7" -> "109;1-5,7" (replace : with ;)
         mac_friendly = psalm_ref.replace(':', ';')
         file_pattern = f'*{mac_friendly}*.txt'
         
@@ -111,46 +115,37 @@ class VespersEnricher:
             matching_files = list(self.psalm_dir.glob(file_pattern))
             if matching_files:
                 psalm_file = matching_files[0]
-                text, tone = self._parse_psalm_file(psalm_file)
-                self._psalm_cache[psalm_ref] = (text, tone)
-                return text, tone
+                text = self._parse_psalm_file(psalm_file)
+                self._psalm_cache[psalm_ref] = text
+                return text
             else:
                 print(f"Warning: Could not find psalm file for {psalm_ref} (pattern: {file_pattern})")
-                return [], "1"
+                return []
         except Exception as e:
             print(f"Warning: Could not load psalm {psalm_ref}: {e}")
-            return [], "1"
+            return []
     
-    def _parse_psalm_file(self, file_path: Path) -> Tuple[list, str]:
+    def _parse_psalm_file(self, file_path: Path) -> list:
         """Parse a psalm text file.
         
-        The file format is:
-        - First line: tone (e.g., "7x")
-        - Remaining lines: psalm verses
+        All lines in the file are psalm verses (text starts from the beginning).
         
         Args:
             file_path: Path to the psalm text file
         
         Returns:
-            Tuple of (text_lines, tone_code)
+            List of all text lines from the file
         """
         try:
             with open(file_path, 'r', encoding='utf-8') as f:
                 lines = f.read().strip().split('\n')
             
-            if len(lines) < 1:
-                return [], "1"
-            
-            # First line is the tone
-            tone = lines[0].strip()
-            
-            # Rest are psalm verses
-            text = [line.strip() for line in lines[1:] if line.strip()]
-            
-            return text, tone
+            # All lines are psalm verses
+            text = [line.strip() for line in lines if line.strip()]
+            return text
         except Exception as e:
             print(f"Warning: Could not parse psalm file {file_path}: {e}")
-            return [], "1"
+            return []
     
     def _find_antiphon_file(self, antiphon_name: str) -> Optional[str]:
         """Find antiphon .gabc file matching antiphon text.
@@ -168,13 +163,17 @@ class VespersEnricher:
         normalized = antiphon_name.replace(' ', '_').replace(',', '').replace(':', '')
         
         # Search for matching files
-        fns = fnmatch.filter(
-            os.listdir(self.antiphon_dir),
-            normalized + '*.gabc'
-        )
+        try:
+            fns = fnmatch.filter(
+                os.listdir(self.antiphon_dir),
+                normalized + '*.gabc'
+            )
+            
+            if fns:
+                return fns[0]  # Return first match
+        except Exception as e:
+            print(f"Warning: Could not search antiphons directory: {e}")
         
-        if fns:
-            return fns[0]  # Return first match
         return None
     
     def _get_antiphon_score(self, antiphon_name: str, mag: bool = False) -> str:
@@ -210,7 +209,7 @@ class VespersEnricher:
         
         Examples:
         - "O_lux_beáta_Trínitas-1a.gabc" → "1a"
-        - "antiphon-8G.gabc" → "8G"
+        - "In_splendoribus-8G.gabc" → "8G"
         - "response-7.gabc" → "7"
         
         Args:
@@ -221,31 +220,6 @@ class VespersEnricher:
         """
         # Extract part after last hyphen, before .gabc
         return filename.split('-')[-1].split('.')[0]
-    
-    def _get_tone_score(self, tone: str) -> str:
-        """Get tone score image (LaTeX).
-        
-        Falls back to using existing get_antiphon_tex() to find tone score.
-        
-        Args:
-            tone: Tone code like "1", "8G", etc.
-        
-        Returns:
-            LaTeX snippet for tone score image
-        """
-        if not tone:
-            return ""
-        
-        try:
-            result = get_antiphon_tex(
-                str(self.antiphon_dir),
-                tone,
-                handout=True
-            )
-            return result
-        except Exception as e:
-            print(f"Warning: Could not load tone {tone}: {e}")
-            return ""
     
     def clear_cache(self) -> None:
         """Clear all caches.
