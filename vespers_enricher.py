@@ -7,8 +7,8 @@ attaching them to a VespersService. It handles caching and graceful failures.
 
 from pathlib import Path
 from typing import Optional, Dict, Tuple
-import fnmatch
 import os
+import re
 
 from vespers_data import VespersService, Psalm
 from vespers_format import get_antiphon_tex
@@ -32,7 +32,7 @@ class VespersEnricher:
             psalm_dir: Path to directory containing psalm text files
                        (e.g., './psalm_texts' with files like 'Ps 109;1-5,7.txt')
             antiphon_dir: Path to directory containing .gabc antiphon files
-                         (e.g., 'antiphons' with files like 'In_splendoribus-1a.gabc')
+                         (e.g., 'antiphons' with files like 'In_splendóribus_sanctis-6.gabc')
         """
         self.psalm_dir = Path(psalm_dir)
         self.antiphon_dir = Path(antiphon_dir)
@@ -150,27 +150,57 @@ class VespersEnricher:
     def _find_antiphon_file(self, antiphon_name: str) -> Optional[str]:
         """Find antiphon .gabc file matching antiphon text.
         
-        Normalizes the antiphon name (replace spaces with underscores, etc.)
-        and searches for matching .gabc file.
+        Converts antiphon Latin text to filename pattern by:
+        1. Taking the first ~40 characters (before punctuation)
+        2. Replacing spaces with underscores
+        3. Searching for matching .gabc files
+        
+        Example: "In splendóribus sanctis, ante lucíferum génui te"
+        → pattern: "In_splendóribus_sanctis*.gabc"
+        → matches: "In_splendóribus_sanctis-6.gabc"
         
         Args:
-            antiphon_name: Latin text like "In splendóribus sanctis..."
+            antiphon_name: Latin text like "In splendóribus sanctis, ante lucíferum génui te, allelúia..."
         
         Returns:
             Filename of matching .gabc file, or None if not found
         """
-        # Normalize antiphon name to match filename conventions
-        normalized = antiphon_name.replace(' ', '_').replace(',', '').replace(':', '')
+        if not antiphon_name:
+            return None
+        
+        # Extract the beginning of the antiphon (up to first punctuation or comma)
+        # This gives us a reasonably unique identifier
+        match = re.match(r"([^,]+?)(?:[,\.]|$)", antiphon_name.strip())
+        if match:
+            antiphon_start = match.group(1).strip()
+        else:
+            antiphon_start = antiphon_name.strip()
+        
+        # Limit to reasonable length to avoid overly long filenames
+        antiphon_start = antiphon_start[:50]
+        
+        # Convert to filename pattern: spaces → underscores
+        file_pattern = antiphon_start.replace(' ', '_') + '*.gabc'
         
         # Search for matching files
         try:
-            fns = fnmatch.filter(
-                os.listdir(self.antiphon_dir),
-                normalized + '*.gabc'
-            )
+            antiphon_files = os.listdir(self.antiphon_dir)
             
-            if fns:
-                return fns[0]  # Return first match
+            # Use simple wildcard matching
+            import fnmatch
+            matching = fnmatch.filter(antiphon_files, file_pattern)
+            
+            if matching:
+                return matching[0]  # Return first match
+            else:
+                # If no exact match, try a more lenient search on word boundaries
+                # Look for files that start with the first word
+                first_word = antiphon_start.split()[0] if antiphon_start else ""
+                if first_word:
+                    lenient_pattern = first_word + '*.gabc'
+                    lenient_matching = fnmatch.filter(antiphon_files, lenient_pattern)
+                    if lenient_matching:
+                        return lenient_matching[0]
         except Exception as e:
             print(f"Warning: Could not search antiphons directory: {e}")
         
@@ -208,15 +238,15 @@ class VespersEnricher:
         """Parse tone code from antiphon filename.
         
         Examples:
+        - "In_splendóribus_sanctis-6.gabc" → "6"
         - "O_lux_beáta_Trínitas-1a.gabc" → "1a"
-        - "In_splendoribus-8G.gabc" → "8G"
-        - "response-7.gabc" → "7"
+        - "antiphon-8G.gabc" → "8G"
         
         Args:
             filename: Basename of .gabc file
         
         Returns:
-            Tone code like "1", "8G", "2*a", etc.
+            Tone code like "1", "8G", "6", etc.
         """
         # Extract part after last hyphen, before .gabc
         return filename.split('-')[-1].split('.')[0]
