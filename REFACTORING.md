@@ -10,119 +10,154 @@ Defines the canonical data structures:
 - **`VespersService`** - Complete service for one day with all sections (hymn, psalms, readings, etc.)
 - **`to_filename()`** - Generates consistent output filenames
 
-**Key idea**: These dataclasses are the "contract" between parsing, enrichment, and rendering. Everything flows through `VespersService`.
-
 ### `vespers_parser.py`
 Extracts text from the universalis ebook format into `VespersService`:
 - **`parse_vespers_text(service_name, parts, readings_parts=None)`** - Main entry point
-- **`_extract_all_data()`** - Consolidates all existing parsing logic
+- Handles optional readings file
+- Uses existing parsing functions from `vespers_format.py`
 
-**Key idea**: Parser only reads text - it does NOT load external files. Psalm objects are created with empty `text` and `tone` fields, which get filled later by the enricher.
+### `vespers_enricher.py` ⭐ NEW
+Loads external files and attaches them to `VespersService`:
+- **`VespersEnricher`** - Main class that handles all file loading
+- Loads psalm texts from `psalms/psalm_texts/`
+- Determines tone from antiphon filenames
+- Gets LaTeX for gregorioscore
+- **Caches everything** to avoid re-reading files
+- Handles missing files gracefully with warnings
 
-**Note on readings**: The second reading comes from a separate file. Pass `readings_parts` to include it; if omitted, it will be empty.
+## The Three-Phase Process
 
-## How to Use (Now)
+```
+Phase 1: PARSE ✅
+  Text → VespersService (structure only)
 
-Currently, the old code still works. To use the new structure:
+Phase 2: ENRICH ⭐ (NEW)
+  VespersService + files → VespersService (fully populated)
+
+Phase 3: RENDER (Next)
+  VespersService → LaTeX lines → .tex file
+```
+
+## How to Use Now
 
 ```python
 from vespers_format import parse_universalis_ebook
 from vespers_parser import parse_vespers_text
+from vespers_enricher import VespersEnricher
 
-# 1. Parse the year files (existing code)
+# 1. Load and parse
 all_services = parse_universalis_ebook('Scripts_2026/uy2026.txt')
 all_readings = parse_universalis_ebook('Scripts_2026/uy2026_readings.txt', n_parts=100)
 
-# 2. Get the service and its readings
 service_name = '12th Sunday in Ordinary Time'
-parts = all_services[service_name]
-readings_parts = all_readings[service_name]  # Optional
+service = parse_vespers_text(
+    service_name,
+    all_services[service_name],
+    all_readings[service_name]
+)
 
-# 3. Parse to VespersService (NEW)
-service = parse_vespers_text(service_name, parts, readings_parts)
-
-# 4. Inspect the structured data
-print(service.name)                          # "12th Sunday in Ordinary Time"
-print(service.date_str)                      # "21 June 2026"
-print(len(service.psalms))                   # 3
-print(service.psalms[0].reference)           # "109:1-5,7"
-print(len(service.reading_second))           # Lines from second reading
-```
-
-## How Readings Work
-
-The readings file (`uy2026_readings.txt`) is parsed separately with `n_parts=100` to capture the full "Office of Readings" section. When you pass `readings_parts` to `parse_vespers_text()`, it extracts the second reading using the existing `get_2nd_reading()` function.
-
-If the readings file is not available or parsing fails, `service.reading_second` will simply be an empty list (no error).
-
-## Next Steps (Phases 2-4)
-
-### Phase 2: Create `VespersEnricher`
-Load external files (psalm texts, antiphon scores) and attach to service:
-
-```python
-from enricher import VespersEnricher
-
+# 2. Enrich with external files
 enricher = VespersEnricher('psalms', 'antiphons')
 service = enricher.enrich(service)
 
-# Now service.psalms[0].text is populated
-# And service.psalms[0].tone is determined
+# 3. Now you have everything needed for rendering
+print(service.psalms[0].reference)       # "109:1-5,7"
+print(service.psalms[0].text[:2])        # First two verses
+print(service.psalms[0].tone)            # "1", "8G", etc.
+print(service.psalms[0].score_latex)     # LaTeX for antiphon
+print(service.magnificat_score_latex)    # LaTeX for magnificat
 ```
 
-### Phase 3: Refactor `VespersRenderer`
-Convert `VespersService` to LaTeX lines:
+## VespersEnricher Features
+
+### Caching
+The enricher caches loaded files to avoid re-reading:
+```python
+enricher = VespersEnricher('psalms', 'antiphons')
+
+service1 = enricher.enrich(service1)  # Psalm 109 loaded from disk
+service2 = enricher.enrich(service2)  # Psalm 109 served from cache
+
+# Clear cache if needed
+enricher.clear_cache()
+```
+
+### Graceful Failures
+Missing files don't crash - they produce warnings and empty strings:
+```
+Warning: Could not load psalm 123:4-5: File not found
+Warning: Could not load tone 9: [...]
+```
+
+### Tone Determination
+The enricher automatically:
+1. Looks for antiphon file (e.g., `O_lux_beáta_Trínitas-1a.gabc`)
+2. Extracts tone from filename (`1a`)
+3. Falls back to default tone if antiphon not found
+
+## Next Steps (Phase 3)
+
+### Create `VespersRenderer`
+Convert enriched `VespersService` to LaTeX:
 
 ```python
 from renderer import VespersRenderer
 
 renderer = VespersRenderer(header)
 latex_lines = renderer.render(service)
+
+# Write to file
+with open('output.tex', 'w') as f:
+    f.write('\n'.join(latex_lines))
 ```
 
-### Phase 4: Simple Runner Script
-All together:
+The renderer will:
+- Break down service into sections (hymn, psalms, readings, etc.)
+- Format each section using LaTeX templates
+- Handle special formatting (drop caps, accents, etc.)
+- Respect the handout style
+
+## Testing Phase 2
+
+Verify the enricher works with your data:
 
 ```python
-# run_vespers.py
-service = parse_vespers_text(service_name, parts, readings_parts)
+from vespers_format import parse_universalis_ebook
+from vespers_parser import parse_vespers_text
+from vespers_enricher import VespersEnricher
+
+all_services = parse_universalis_ebook('Scripts_2026/uy2026.txt')
+all_readings = parse_universalis_ebook('Scripts_2026/uy2026_readings.txt', n_parts=100)
+
+service = parse_vespers_text(
+    '12th Sunday in Ordinary Time',
+    all_services['12th Sunday in Ordinary Time'],
+    all_readings['12th Sunday in Ordinary Time']
+)
+
+enricher = VespersEnricher('psalms', 'antiphons')
 service = enricher.enrich(service)
-latex = renderer.render(service)
-```
 
-## Testing the New Code
+# Check that everything is populated
+assert len(service.psalms[0].text) > 0, "Psalm text not loaded"
+assert service.psalms[0].tone, "Tone not determined"
+assert len(service.psalms[0].score_latex) > 0, "Antiphon score not loaded"
+assert len(service.magnificat_score_latex) > 0, "Magnificat score not loaded"
 
-You can test that the parsing produces the same data as before:
-
-```python
-# Old way
-d = get_vespers_data_universalis(name, parts)
-d.update(get_2nd_reading(sections_readings[name]))
-
-# New way
-service = parse_vespers_text(name, parts, readings_parts)
-
-# Compare (before enrichment):
-assert service.name == d['name']
-assert service.date_str == d['date_string']
-assert service.psalms[0].reference == d['ps A']
-assert service.psalms[0].name == d['ps A name']
-assert service.reading_second == d['2read']
-# ... etc
+print("✓ All data enriched successfully!")
 ```
 
 ## Benefits of This Structure
 
-✅ **Type safety** - IDEs can auto-complete and catch mistakes  
-✅ **Clarity** - Data flow is explicit: parse → enrich → render  
-✅ **Testability** - Each step can be tested in isolation  
-✅ **Extensibility** - Adding new sections (e.g., Lauds) just requires adding fields to `VespersService`  
-✅ **Reusability** - Same `VespersService` can be rendered to HTML, PDF, etc.  
-✅ **No breaking changes** - Old code still works; this is additive  
+✅ **Clean separation of concerns** - Parse, enrich, render are independent  
+✅ **Caching** - Efficient reuse of loaded data  
+✅ **Testability** - Each phase can be tested in isolation  
+✅ **Graceful failures** - Missing files don't crash  
+✅ **Extensibility** - Easy to add new enrichment steps  
+✅ **No breaking changes** - Old code still works  
 
 ## Files Still Using Old Code
 
-- `vespers_format.py` - Still contains all parsing functions (unchanged for now)
+- `vespers_format.py` - Still contains all original functions (used by enricher)
 - Existing runner scripts - Still work unchanged
-
-These will be refactored in phases 2-4.
+- `make_vespers_handout_latex()` - Still works (will be refactored in Phase 3)
