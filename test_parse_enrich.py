@@ -61,7 +61,7 @@ def test_parse_and_enrich():
     
     # Enrich with external files
     print("\n4. Creating enricher...")
-    enricher = VespersEnricher('psalms', 'antiphons')
+    enricher = VespersEnricher('./psalm_texts', 'antiphons')
     print("   ✓ VespersEnricher created")
     
     print("\n5. Enriching service (loading external files)...")
