@@ -1,0 +1,146 @@
+% !TEX TS-program = LuaLaTeX
+% !TEX encoding = UTF-8
+
+\documentclass[12pt]{article}
+\usepackage[autocompile]{gregoriotex}
+\usepackage{fullpage}
+\usepackage{libertine}
+\usepackage[latin]{babel}
+\usepackage{graphicx}
+\usepackage[margin=1.5cm,a4paper]{geometry}
+\usepackage{fontspec}
+\setmainfont{Cormorant Garamond}
+\newfontfamily\ebgaramond{EB Garamond}
+\usepackage{lettrine}
+\usepackage{Carrickc,lettrine}
+\renewcommand\LettrineFontHook{\Carrickcfamily}
+\usepackage{multicol}
+\usepackage{lipsum}  % For generating dummy text
+\usepackage{wrapfig}
+\renewcommand{\arraystretch}{0.6} % add space between rows of a table
+\usepackage{fancyhdr}
+
+\usepackage{longtable}
+\usepackage{widows-and-orphans}
+\usepackage{array} %%for longtable fix
+\def\justifying{%
+  \noindent
+  \rightskip=0pt
+  \spaceskip=0pt
+  \xspaceskip=0pt
+  \relax
+}
+\raggedright
+\gresethyphen{force}
+
+\grechangestyle{initial}{
+	\fontsize{43}{43}\selectfont}
+\definecolor{gregoriocolor}{RGB}{255,255,255} %allow for invisible (white) text
+
+\newcommand{\Responsorium}{{\ebgaramond ℟ }}
+
+%\setlength{\parskip}{1em}
+\begin{document}
+{
+\addfontfeatures{Numbers=OldStyle}
+
+\widowpenalty=10000
+%%\clubpenalty=10000
+
+\grechangestaffsize{26}
+\setlength{\columnsep}{1cm}
+\setlength{\columnseprule}{0.2pt}
+\setcounter{page}{3}
+{\fontsize{18}{20}\selectfont
+{\justifying\gregorioscore[a]{antiphons/O_lux_beáta_Trínitas.gabc}}
+\begin{longtable}{>{\raggedright\arraybackslash}p{0.45\textwidth} >{\raggedright\arraybackslash}p{0.5\textwidth}}
+{\textsc{1} O lux, beáta Trínitas\newline et principális Unitas,\newline iam sol recédit ígneus:\newline infúnde lumen córdibus. \newline } & {O Trinity of blessed light,\newline O Unity of princely might,\newline The fiery sun now goes his way;\newline Shed Thou within our hearts Thy ray.}\\
+{\textsc{2} Te mane laudum cármine,\newline te deprecémur véspere;\newline te nostra supplex glória\newline per cuncta laudet sǽcula. \newline } & {To Thee our morning song of praise,\newline To Thee our evening prayer we raise;\newline Thy glory suppliant we adore\newline Forever and forevermore.}\\
+{\textsc{3} Christum rogámus et Patrem,\newline Christi Patrísque Spíritum;\newline unum potens per ómnia,\newline fove precántes, Trínitas. Amen. \newline } & {All laud to God the Father be;\newline All praise, Eternal Son, to Thee;\newline All glory, as is ever meet,\newline To God the Holy Paraclete.}\\
+\end{longtable}
+}
+\grechangedim{spacelinestext}{8mm}{scalable}
+{\fontsize{20}{22}\selectfont
+\newpage
+\textbf{Ps 109:1-5,7} \hfill \textit{Dixit Dominus}\\
+\begin{multicols}{2}
+In splendóribus sanctis, ante lucíferum génui te, allelúia.\\
+{\justifying\gregorioscore[a]{antiphons/6.gabc}}
+\newcolumn
+In holy splendour I begot you before the dawn, alleluia.\\
+\end{multicols}\begin{multicols}{2}
+\lettrine[lines=3,nindent=0.5em,loversize=0.3]{T}{\uppercase{HE}} \textsc{Lord} said\textbf{ un}to my\textbf{ Lord,} * Sit thou on my right hand, until I make thine ene\textit{mies thy}\textbf{ foot}stool.\vspace{0.4em}\\
+2 The \textsc{Lord} shall send the rod of thy power\textbf{ out} of\textbf{ Sion:} * be thou ruler, even in the midst a\textit{mong thine}\textbf{ en}emies.\vspace{0.4em}\\
+3 In the day of thy power † shall thy people offer themselves willingly with an\textbf{ ho}ly\textbf{ wor}ship: * thy young men come to thee as dew from the womb\textit{ of the}\textbf{ morn}ing.\vspace{0.4em}\\
+4 The \textsc{Lord} sware, and will\textbf{ not} re\textbf{pen}t, * Thou art a Priest forever after the order \textit{of Mel}\textbf{chi}zedek.\vspace{0.4em}\\
+5 The Lord upon thy\textbf{ right}\textbf{ hand} * shall wound even kings in the day\textit{ of his}\textbf{ wrath.}\vspace{0.4em}\\
+7 He shall drink of the\textbf{ brook} in the\textbf{ way;} * therefore shall he lift\textit{ up his}\textbf{ head.}\vspace{0.4em}\\
+8 Glory be to the Father, and\textbf{ to} the\textbf{ Son,} * and to the\textit{ Holy}\textbf{ Ghost;}\vspace{0.4em}\\
+9 As it was in the beginning, † is now, and\textbf{ ev}er\textbf{ shall} be, * world without\textit{ end. A}\textbf{men.}\vspace{0.4em}
+\\
+\leftskip=0pt
+\end{multicols}
+\newpage
+\textbf{Ps 111:1-10} \hfill \textit{Beatus vir}\\
+\begin{multicols}{2}
+Beáti qui esúriunt et sítiunt iustítiam, quóniam ipsi saturabúntur.\\
+{\justifying\gregorioscore[a]{antiphons/8G.gabc}}
+\newcolumn
+Blessed are those who hunger and thirst for justice, for they shall have their fill.\\
+\end{multicols}\begin{multicols}{2}
+\lettrine[lines=3,nindent=0.5em,loversize=0.3]{B}{\uppercase{LESSED}} is the man that feareth the\textbf{ \textsc{Lord};} * he hath great delight in\textit{ his com}\textbf{mand}ments.\vspace{0.4em}\\
+2 His seed shall be mighty upon\textbf{ earth;} * the generation of the faithful\textit{ shall be}\textbf{ blessed.}\vspace{0.4em}\\
+3 Riches and plenteousness shall be in his\textbf{ house;} * and his righteousness en\textit{dureth for}\textbf{ev}er.\vspace{0.4em}\\
+4 Unto the godly there ariseth up light in the\textbf{ dark}ness; * he is merciful, lov\textit{ing, and}\textbf{ right}eous.\vspace{0.4em}\\
+5 A good man is merciful, and\textbf{ lende}th; * and will guide his words\textit{ with dis}\textbf{cre}tion.\vspace{0.4em}\\
+6 For he shall never be\textbf{ mov}-ed: * and the righteous shall be had in everlast\textit{ing re}\textbf{mem}brance.\vspace{0.4em}\\
+7 He will not be afraid of any evil\textbf{ tid}ings; * for his heart standeth fast, and believeth\textit{ in the}\textbf{ \textsc{Lord}.}\vspace{0.4em}\\
+8 His heart is stablish-ed, and will not\textbf{ shrink}, * until he see his desire up\textit{on his}\textbf{ en}emies.\vspace{0.4em}\\
+9 He hath dispersed abroad, and given to the\textbf{ poor.} * and his righteousness remaineth forever; his horn shall be exalt\textit{ed with}\textbf{ hon}or.\vspace{0.4em}\\
+10 The ungodly shall see it, and it shall grieve him; † he shall gnash with his teeth, and consume a\textbf{way;} * the desire of the ungod\textit{ly shall}\textbf{ per}ish.\vspace{0.4em}\\
+11 Glory be to the Father, and to the\textbf{ Son,} * and to the\textit{ Holy}\textbf{ Ghost;}\vspace{0.4em}\\
+12 As it was in the beginning, † is now, and ever\textbf{ shall} be, * world without\textit{ end. A}\textbf{men.}\vspace{0.4em}
+\\
+\leftskip=0pt
+\end{multicols}
+}
+\newpage
+{\fontsize{17}{19}\selectfont
+\textbf{Ap 19} \hfill \textit{Salus et glória}\\
+\begin{multicols}{2}
+Laudem dícite Deo, omnes servi eius, pusílli et magni, allelúia.\\
+\newcolumn
+Praise God, all you his servants, both great and small. Alleluia.\\
+\end{multicols}
+{\justifying\gregorioscore[a]{antiphons/7y.gabc}}
+\begin{multicols}{2}
+\lettrine[lines=3,nindent=0.5em,loversize=0.3]{S}{\uppercase{alvation}} and glory and power belong to \textit{our} \textbf{ God,} * \textbf{\Responsorium   Alleluia.} His judgements are true \textit{and} \textbf{ just.} \textbf{\Responsorium Alleluia. Alleluia.} \vspace{0.4em}\\
+Praise our God, all you \textit{his} \textbf{ ser}vants, * \textbf{\Responsorium  Alleluia. } You who fear him, small \textit{and} \textbf{ great.} \textbf{\Responsorium Alleluia. Alleluia.}\vspace{0.4em}\\
+The Lord our God, the Almigh\textit{ty},\textbf{ reigns}, * \textbf{\Responsorium  Alleluia. } Let us rejoice and exult and give him \textit{the}\textbf{ glo}ry. \textbf{\Responsorium Alleluia. Alleluia.}\vspace{0.4em}\\
+The marriage of the Lamb \textit{has}\textbf{ come,} * \textbf{\Responsorium  Alleluia. } And his bride has made her\textit{self}\textbf{ re}ady. \textbf{\Responsorium Alleluia. Alleluia.}\vspace{0.4em}\\
+Glory be to the Father, and to \textit{the}\textbf{ Son,} * \textbf{\Responsorium  Alleluia. } And to the Ho\textit{ly}\textbf{ Ghost;} \textbf{\Responsorium Alleluia. Alleluia.}\vspace{0.4em}\\
+As it was in the beginning, † is now, and ever \textit{shall} \textbf{be} * \textbf{\Responsorium  Alleluia. } World without end. \textit{A}\textbf{men.} \textbf{\Responsorium Alleluia. Alleluia.}\vspace{0.4em}
+\\
+\leftskip=0pt
+\end{multicols}
+\begin{multicols}{2}
+\textbf{RESPONSES} \\
+\textit{First reading}\\
+\textbf{\Responsorium Great is our Lord; great is his might.}\\
+\newcolumn
+\textit{Prayers and Intercessions}\\
+\textbf{\Responsorium Fulfil the hopes of those who sleep in your peace: bring them to that final resurrection when you will be all in all.}\
+\end{multicols}
+\begin{multicols}{2}
+\textbf{MAGNIFICAT ANTIPHON} \\
+Qui me conféssus fúerit coram homínibus, confitébor et ego eum coram Patre meo, qui est in cælis.
+\newcolumn
+If anyone declares himself for me in the presence of men, I will declare myself for him in the presence of my Father in heaven. 
+\end{multicols}
+
+\vfill
+\begin{center}
+\textit{\small 12th Sunday in Ordinary Time}
+\end{center}
+}
+\end{document}
