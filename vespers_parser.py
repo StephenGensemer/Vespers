@@ -6,19 +6,22 @@ and converts it to VespersService objects. It does NOT load external files
 (that's done by VespersEnricher).
 """
 
-from typing import List
+from typing import List, Optional
 from vespers_data import Psalm, VespersService
 from vespers_format import get_nonempty_lines, parse_psalm_universalis, get_2nd_reading
 
 
-def parse_vespers_text(service_name: str, parts: List[str]) -> VespersService:
+def parse_vespers_text(service_name: str, parts: List[str], 
+                       readings_parts: Optional[List[str]] = None) -> VespersService:
     """
     Parse vespers text from universalis ebook format into a VespersService.
     
     Args:
         service_name: Name of the service (e.g., "12th Sunday in Ordinary Time")
-        parts: List of text sections from parse_universalis_ebook()
+        parts: List of text sections from parse_universalis_ebook() for vespers
                [date_string, intro, hymn_section, psalm_a, psalm_b, canticle, ...]
+        readings_parts: Optional list of text sections from parse_universalis_ebook() 
+                       for office of readings. If None, reading_second will be empty.
     
     Returns:
         VespersService with all fields populated from input text
@@ -27,6 +30,16 @@ def parse_vespers_text(service_name: str, parts: List[str]) -> VespersService:
     
     # Extract data using existing parsing functions
     parsed_data = _extract_all_data(service_name, parts)
+    
+    # Try to get second reading from readings file if provided
+    if readings_parts is not None:
+        try:
+            parsed_data.update(get_2nd_reading(readings_parts))
+        except (ValueError, IndexError):
+            # If second reading can't be parsed, leave it empty
+            parsed_data['2read'] = []
+    else:
+        parsed_data['2read'] = []
     
     # Build Psalm objects for the three psalms
     psalms = [
@@ -136,7 +149,7 @@ def _extract_all_data(service_name: str, parts: List[str]) -> dict:
     text = parts[12].split('Amen.')[1]
     d['conc'] = get_nonempty_lines(text) + ['Amen.']
     
-    # ============ SECOND READING (if present) ============
-    d.update(get_2nd_reading(parts))
+    # ============ SECOND READING (loaded separately from readings file) ============
+    d['2read'] = []  # Will be updated by caller if readings_parts provided
     
     return d
