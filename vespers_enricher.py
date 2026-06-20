@@ -29,7 +29,8 @@ class VespersEnricher:
         """Initialize enricher with paths to external data.
         
         Args:
-            psalm_dir: Path to directory containing psalm_texts/ subdirectory
+            psalm_dir: Path to directory containing psalm text files
+                       (e.g., './psalm_texts' with files like 'Ps 109;1-5,7_7x.txt')
             antiphon_dir: Path to directory containing .gabc antiphon files
         """
         self.psalm_dir = Path(psalm_dir)
@@ -86,6 +87,9 @@ class VespersEnricher:
     def _load_psalm_file(self, psalm_ref: str) -> Tuple[list, str]:
         """Load psalm verses and return default tone.
         
+        Handles Mac-style filenames where colons are replaced with semicolons.
+        Example: psalm_ref "109:1-5,7" matches file "Ps 109;1-5,7_7x.txt"
+        
         Uses cache to avoid re-reading the same psalm.
         
         Args:
@@ -97,18 +101,55 @@ class VespersEnricher:
         if psalm_ref in self._psalm_cache:
             return self._psalm_cache[psalm_ref]
         
-        # Use existing get_psalm_file() from vespers_format
+        # Convert reference to Mac-friendly filename pattern
+        # "109:1-5,7" -> "Ps 109;1-5,7" (replace : with ;)
+        mac_friendly = psalm_ref.replace(':', ';')
+        file_pattern = f'*{mac_friendly}*.txt'
+        
+        # Search for matching file in psalm_dir
         try:
-            text, tone = get_psalm_file(
-                str(self.psalm_dir),
-                psalm_ref,
-                fix_lord=True,
-                tex=True
-            )
-            self._psalm_cache[psalm_ref] = (text, tone)
-            return text, tone
+            matching_files = list(self.psalm_dir.glob(file_pattern))
+            if matching_files:
+                psalm_file = matching_files[0]
+                text, tone = self._parse_psalm_file(psalm_file)
+                self._psalm_cache[psalm_ref] = (text, tone)
+                return text, tone
+            else:
+                print(f"Warning: Could not find psalm file for {psalm_ref} (pattern: {file_pattern})")
+                return [], "1"
         except Exception as e:
             print(f"Warning: Could not load psalm {psalm_ref}: {e}")
+            return [], "1"
+    
+    def _parse_psalm_file(self, file_path: Path) -> Tuple[list, str]:
+        """Parse a psalm text file.
+        
+        The file format is:
+        - First line: tone (e.g., "7x")
+        - Remaining lines: psalm verses
+        
+        Args:
+            file_path: Path to the psalm text file
+        
+        Returns:
+            Tuple of (text_lines, tone_code)
+        """
+        try:
+            with open(file_path, 'r', encoding='utf-8') as f:
+                lines = f.read().strip().split('\n')
+            
+            if len(lines) < 1:
+                return [], "1"
+            
+            # First line is the tone
+            tone = lines[0].strip()
+            
+            # Rest are psalm verses
+            text = [line.strip() for line in lines[1:] if line.strip()]
+            
+            return text, tone
+        except Exception as e:
+            print(f"Warning: Could not parse psalm file {file_path}: {e}")
             return [], "1"
     
     def _find_antiphon_file(self, antiphon_name: str) -> Optional[str]:
