@@ -14,7 +14,6 @@ import unicodedata
 from vespers_data import VespersService, Psalm
 from vespers_format import get_antiphon_tex
 
-
 class VespersEnricher:
     """Load and attach external data to a VespersService.
 
@@ -64,6 +63,17 @@ class VespersEnricher:
             service.magnificat_antiphon_latin,
             mag=True
         )
+        hymn_dir = os.path.join(self.psalm_dir, "hymn_text")  # or your repo root path source
+        hymn_key = " ".join((service.hymn_latin[0] if service.hymn_latin else "").split()[:4])  # better than 3
+        path = _find_hymn_file(hymn_dir, hymn_key)
+        
+        if path:
+            with open(path, "r", encoding="utf-8") as f:
+                lines = [ln.rstrip("\n") for ln in f]
+            service.hymn_latin = lines
+            print(f"Loaded hymn from file: {path}")
+        else:
+            print(f"Warning: hymn file not found for key '{hymn_key}' in {hymn_dir}")
 
         return service
 
@@ -271,6 +281,44 @@ class VespersEnricher:
         # Extract part after last hyphen, before .gabc
         return filename.split('-')[-1].split('.')[0]
 
+    def _norm_text(s: str) -> str:
+        if not s:
+            return ""
+        s = unicodedata.normalize("NFC", s).strip().casefold()
+        s = unicodedata.normalize("NFD", s)
+        s = "".join(ch for ch in s if unicodedata.category(ch) != "Mn")
+        s = re.sub(r"[^0-9a-z]+", " ", s)
+        return re.sub(r"\s+", " ", s).strip()
+    
+    def _prefix_tokens(s: str, n: int = 4) -> str:
+        return " ".join(_norm_text(s).split()[:n])
+    
+    def _find_hymn_file(hymn_dir: str, hymn_key: str) -> str | None:
+        files = [f for f in os.listdir(hymn_dir) if f.lower().endswith(".txt")]
+        target = _norm_text(hymn_key)
+        target_prefix = _prefix_tokens(hymn_key, 4)
+    
+        # exact stem
+        for fn in files:
+            stem, _ = os.path.splitext(fn)
+            if _norm_text(stem) == target:
+                return os.path.join(hymn_dir, fn)
+    
+        # startswith either direction
+        for fn in files:
+            stem, _ = os.path.splitext(fn)
+            s = _norm_text(stem)
+            if s.startswith(target) or target.startswith(s):
+                return os.path.join(hymn_dir, fn)
+    
+        # token-prefix fallback
+        for fn in files:
+            stem, _ = os.path.splitext(fn)
+            p = _prefix_tokens(stem, 4)
+            if p and (p == target_prefix or p.startswith(target_prefix) or target_prefix.startswith(p)):
+                return os.path.join(hymn_dir, fn)
+    
+        return None    
     def clear_cache(self) -> None:
         """Clear all caches.
 
