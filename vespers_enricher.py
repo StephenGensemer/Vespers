@@ -66,7 +66,7 @@ class VespersEnricher:
         hymn_dir = os.path.join(self.psalm_dir, "hymn_text")  # or your repo root path source
         hymn_key = " ".join((service.hymn_latin[0] if service.hymn_latin else "").split()[:4])  # better than 3
         path = self._find_hymn_file(hymn_dir, hymn_key)
-        
+
         if path:
             with open(path, "r", encoding="utf-8") as f:
                 lines = [ln.rstrip("\n") for ln in f]
@@ -289,38 +289,37 @@ class VespersEnricher:
         s = "".join(ch for ch in s if unicodedata.category(ch) != "Mn")
         s = re.sub(r"[^0-9a-z]+", " ", s)
         return re.sub(r"\s+", " ", s).strip()
-    
+
     def _prefix_tokens(self, s: str, n: int = 4) -> str:
         return " ".join(self._norm_text(s).split()[:n])
-    
-    from typing import List,Optional
 
     def _find_hymn_file(self, hymn_dir: str, hymn_key: str) -> Optional[str]:
         files = [f for f in os.listdir(hymn_dir) if f.lower().endswith(".txt")]
         target = self._norm_text(hymn_key)
         target_prefix = self._prefix_tokens(hymn_key, 4)
-        
+
         # exact stem
         for fn in files:
             stem, _ = os.path.splitext(fn)
             if self._norm_text(stem) == target:
                 return os.path.join(hymn_dir, fn)
-    
+
         # startswith either direction
         for fn in files:
             stem, _ = os.path.splitext(fn)
-            s = _norm_text(stem)
+            s = self._norm_text(stem)
             if s.startswith(target) or target.startswith(s):
                 return os.path.join(hymn_dir, fn)
-    
+
         # token-prefix fallback
         for fn in files:
             stem, _ = os.path.splitext(fn)
-            p = _prefix_tokens(stem, 4)
+            p = self._prefix_tokens(stem, 4)
             if p and (p == target_prefix or p.startswith(target_prefix) or target_prefix.startswith(p)):
                 return os.path.join(hymn_dir, fn)
-    
-        return None    
+
+        return None
+
     def clear_cache(self) -> None:
         """Clear all caches.
 
