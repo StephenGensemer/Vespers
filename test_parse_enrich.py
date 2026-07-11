@@ -144,7 +144,7 @@ def test_parse_and_enrich():
 
     print("\n11. Rendering handout lines via VespersRenderer...")
     header = [r'\\documentclass{article}', r'\\begin{document}']
-    renderer = VespersRenderer(header_lines=header)
+    renderer = VespersRenderer(header_file="header.tex")
     handout_lines = renderer.render_handout_lines(d, '.', 'antiphons')
     print(f"   ✓ Rendered {len(handout_lines)} lines")
 
