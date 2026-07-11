@@ -1,0 +1,52 @@
+% !TEX TS-program = LuaLaTeX
+% !TEX encoding = UTF-8
+
+\documentclass[12pt]{article}
+\usepackage[autocompile]{gregoriotex}
+\usepackage{fullpage}
+\usepackage{libertine}
+\usepackage[latin]{babel}
+\usepackage{graphicx}
+\usepackage[margin=1.5cm,a4paper]{geometry}
+\usepackage{fontspec}
+\setmainfont{Cormorant Garamond}
+\newfontfamily\ebgaramond{EB Garamond}
+\usepackage{lettrine}
+\usepackage{Carrickc,lettrine}
+\renewcommand\LettrineFontHook{\Carrickcfamily}
+\usepackage{multicol}
+\usepackage{lipsum}  % For generating dummy text
+\usepackage{wrapfig}
+\renewcommand{\arraystretch}{0.6} % add space between rows of a table
+\usepackage{fancyhdr}
+
+\usepackage{longtable}
+\usepackage{widows-and-orphans}
+\usepackage{array} %%for longtable fix
+\def\justifying{%
+  \noindent
+  \rightskip=0pt
+  \spaceskip=0pt
+  \xspaceskip=0pt
+  \relax
+}
+\raggedright
+\gresethyphen{force}
+
+\grechangestyle{initial}{
+	\fontsize{43}{43}\selectfont}
+\definecolor{gregoriocolor}{RGB}{255,255,255} %allow for invisible (white) text
+
+\newcommand{\Responsorium}{{\ebgaramond ℟ }}
+
+%\setlength{\parskip}{1em}
+\begin{document}
+{
+\addfontfeatures{Numbers=OldStyle}
+
+\widowpenalty=10000
+%%\clubpenalty=10000
+
+\grechangestaffsize{26}
+\setlength{\columnsep}{1cm}
+\setlength{\columnseprule}{0.2pt}
