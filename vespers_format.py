@@ -302,43 +302,34 @@ def replace_text_simple(original_text, replacements):
 
 
 def format_hymn_tex(hymn_text):
-    # Normalize input to a list of lines
+    # 1) Normalize input into one text blob
     if isinstance(hymn_text, str):
-        lines = hymn_text.splitlines()
+        text = hymn_text
     elif isinstance(hymn_text, list):
-        if len(hymn_text) == 1 and isinstance(hymn_text[0], str) and "\n" in hymn_text[0]:
-            lines = hymn_text[0].splitlines()
-        else:
-            lines = []
-            for item in hymn_text:
-                if isinstance(item, str):
-                    lines.extend(item.splitlines())
-                else:
-                    lines.append(str(item))
+        text = "\n".join(str(x) for x in hymn_text)
     else:
-        lines = str(hymn_text).splitlines()
+        text = str(hymn_text)
 
-    # Split into stanza blocks by blank/whitespace-only lines
+    # 2) Handle escaped newlines (literal "\n") if present
+    if "\\n" in text and "\n" not in text:
+        text = text.replace("\\r\\n", "\n").replace("\\n", "\n")
+
+    # 3) Normalize line endings
+    text = text.replace("\r\n", "\n").replace("\r", "\n")
+
+    # 4) Split stanzas on blank/whitespace-only lines
+    raw_blocks = text.split("\n\n")
     verses = []
-    cur = []
-    for line in lines:
-        if line.strip() == "":
-            if cur:
-                verses.append(cur)
-                cur = []
-        else:
-            cur.append(line.strip())
-    if cur:
-        verses.append(cur)
+    for b in raw_blocks:
+        lines = [ln.strip() for ln in b.split("\n") if ln.strip()]
+        if lines:
+            verses.append(lines)
 
     nv = len(verses) // 2
     if nv * 2 != len(verses):
         print(f'wrong number of verses! got {len(verses)} verse-blocks (expected even)')
-        # best effort pairing
-        n_pairs = min(nv, len(verses) - nv)
-    else:
-        n_pairs = nv
 
+    n_pairs = min(nv, len(verses) - nv)
     verses_latin = [r'\newline '.join(v) for v in verses[:n_pairs]]
     verses_english = [r'\newline '.join(v) for v in verses[nv:nv + n_pairs]]
 
@@ -351,7 +342,8 @@ def format_hymn_tex(hymn_text):
         )
     ht.append(r'\end{longtable}')
     return ht
-
+    
+    
 def split_list(input_list, separator):
     result = []
     current_sublist = []
