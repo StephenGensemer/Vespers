@@ -18,8 +18,18 @@ class VespersRenderer:
     behavior while we migrate to VespersService-based rendering.
     """
 
-    def __init__(self, header_lines: list[str]):
-        self.header_lines = header_lines
+    def __init__(
+        self,
+        header_lines: list[str] | None = None,
+        header_file: str | None = None,
+    ):
+        if header_lines is not None:
+            self.header_lines = header_lines
+        elif header_file is not None:
+            with open(header_file, "r", encoding="utf-8") as f:
+                self.header_lines = [line.rstrip("\n") for line in f]
+        else:
+            self.header_lines = [r"\documentclass{article}", r"\begin{document}"]
 
     def render_handout_lines(
         self,
