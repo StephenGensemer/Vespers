@@ -3,7 +3,7 @@
 CLI script to parse, enrich, and render a Vespers service handout.
 
 Usage:
-  python test_parse_enrich.py <all_services> <all_readings> <service_name>
+  python test_parse_enrich.py --all-services <all_services> --all-readings <all_readings> --service-name <service_name>
 
 Output:
   <service_name>_handout.tex
@@ -76,9 +76,9 @@ def main() -> None:
     parser = argparse.ArgumentParser(
         description="Parse, enrich, and render a Vespers handout for a service."
     )
-    parser.add_argument('all_services', help='Path to universalis all-services input file')
-    parser.add_argument('all_readings', help='Path to universalis all-readings input file')
-    parser.add_argument('service_name', help='Exact service name key to render')
+    parser.add_argument('--all-services', required=True, help='Path to universalis all-services input file')
+    parser.add_argument('--all-readings', required=True, help='Path to universalis all-readings input file')
+    parser.add_argument('--service-name', required=True, help='Exact service name key to render')
 
     args = parser.parse_args()
 
