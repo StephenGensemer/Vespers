@@ -1,0 +1,6 @@
+name: 8c;
+annotation: VIII.c;
+annotation: Psalm;
+mode: VIII.c;
+%%
+(c4) (jr)(kr1)(jr.)*(:)(jr)(h)(j)(kr1)(jr.)(::)(z)
