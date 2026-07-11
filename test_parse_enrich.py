@@ -63,7 +63,7 @@ def test_parse_and_enrich():
 
     # Enrich with external files
     print("\n4. Creating enricher...")
-    enricher = VespersEnricher('./psalm_texts', 'antiphons')
+    enricher = VespersEnricher('.', 'antiphons')
     print("   ✓ VespersEnricher created")
 
     print("\n5. Enriching service (loading external files)...")
@@ -145,7 +145,7 @@ def test_parse_and_enrich():
     print("\n11. Rendering handout lines via VespersRenderer...")
     header = [r'\\documentclass{article}', r'\\begin{document}']
     renderer = VespersRenderer(header_lines=header)
-    handout_lines = renderer.render_handout_lines(d, './psalm_texts', 'antiphons')
+    handout_lines = renderer.render_handout_lines(d, '.', 'antiphons')
     print(f"   ✓ Rendered {len(handout_lines)} lines")
 
     # Basic render assertions
