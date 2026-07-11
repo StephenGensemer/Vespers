@@ -302,47 +302,21 @@ def replace_text_simple(original_text, replacements):
 
 
 def format_hymn_tex(hymn_text):
-    # 1) Normalize input into one text blob
-    if isinstance(hymn_text, str):
-        text = hymn_text
-    elif isinstance(hymn_text, list):
-        text = "\n".join(str(x) for x in hymn_text)
-    else:
-        text = str(hymn_text)
-
-    # 2) Handle escaped newlines (literal "\n") if present
-    if "\\n" in text and "\n" not in text:
-        text = text.replace("\\r\\n", "\n").replace("\\n", "\n")
-
-    # 3) Normalize line endings
-    text = text.replace("\r\n", "\n").replace("\r", "\n")
-
-    # 4) Split stanzas on blank/whitespace-only lines
-    raw_blocks = text.split("\n\n")
-    verses = []
-    for b in raw_blocks:
-        lines = [ln.strip() for ln in b.split("\n") if ln.strip()]
-        if lines:
-            verses.append(lines)
-
-    nv = len(verses) // 2
-    if nv * 2 != len(verses):
-        print(f'wrong number of verses! got {len(verses)} verse-blocks (expected even)')
-
-    n_pairs = min(nv, len(verses) - nv)
-    verses_latin = [r'\newline '.join(v) for v in verses[:n_pairs]]
-    verses_english = [r'\newline '.join(v) for v in verses[nv:nv + n_pairs]]
-
+    verses = split_list(hymn_text, '')
+    nv = int(len(verses)/2)
+    if nv*2!= len(verses): print('wrong number of verses!')
+    verses_latin = [r'\newline '.join(verse) for verse in verses[:nv]]
+    verses_english = [r'\newline '.join(verse) for verse in verses[nv:]]
     ht = []
     ht.append(r'\begin{longtable}{>{\raggedright\arraybackslash}p{0.45\textwidth} >{\raggedright\arraybackslash}p{0.5\textwidth}}')
-    for i in range(n_pairs):
-        ht.append(
-            r'{\textsc{' + str(i + 1) + '} ' + verses_latin[i] + r' \newline } & '
-            + r'{\textsc{' + str(i + 1) + r'} ' + verses_english[i] + r'}\\'
-        )
+    for i in range(nv):
+        ht.append(r'{\textsc{'+str(i+1)+'} ' + verses_latin[i] + r' \newline '\
+                  + r'} & ' \
+                  + r'{\textsc{'+str(i+1)+r'} '+ verses_english[i] + r'}\\')
     ht.append(r'\end{longtable}')
     return ht
-    
+
+  
     
 def split_list(input_list, separator):
     result = []
