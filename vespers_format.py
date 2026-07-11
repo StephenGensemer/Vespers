@@ -304,7 +304,7 @@ def replace_text_simple(original_text, replacements):
 def format_hymn_tex(hymn_text):
     verses = split_list(hymn_text, '')
     nv = int(len(verses)/2)
-    if nv*2!= len(verses): print('wrong number of verses!')
+    if nv*2!= len(verses): print('found',nv,'wrong number of verses!')
     verses_latin = [r'\newline '.join(verse) for verse in verses[:nv]]
     verses_english = [r'\newline '.join(verse) for verse in verses[nv:]]
     ht = []
