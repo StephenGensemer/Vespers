@@ -302,21 +302,35 @@ def replace_text_simple(original_text, replacements):
 
 
 def format_hymn_tex(hymn_text):
-    verses = split_list(hymn_text, '')
-    verses = [v for v in verses if any(line.strip() for line in v)]
+    # Split into blocks separated by blank (or whitespace-only) lines
+    verses = []
+    cur = []
+    for line in hymn_text:
+        if line.strip() == "":
+            if cur:
+                verses.append(cur)
+                cur = []
+        else:
+            cur.append(line.strip())
+    if cur:
+        verses.append(cur)
 
     nv = len(verses) // 2
-    if nv*2!= len(verses):
+    if nv * 2 != len(verses):
         print(f'wrong number of verses! got {len(verses)} verse-blocks (expected even)')
+        # Keep going with best effort: pair what we can
+        nv = min(nv, len(verses) - nv)
 
     verses_latin = [r'\newline '.join(verse) for verse in verses[:nv]]
     verses_english = [r'\newline '.join(verse) for verse in verses[nv:nv*2]]
+
     ht = []
     ht.append(r'\begin{longtable}{>{\raggedright\arraybackslash}p{0.45\textwidth} >{\raggedright\arraybackslash}p{0.5\textwidth}}')
-    for i in range(nv):
-        ht.append(r'{\textsc{'+str(i+1)+'} ' + verses_latin[i] + r' \newline '
-                  + r'} & '
-                  + r'{\textsc{'+str(i+1)+r'} '+ verses_english[i] + r'}\\')
+    for i in range(min(len(verses_latin), len(verses_english))):
+        ht.append(
+            r'{\textsc{' + str(i+1) + '} ' + verses_latin[i] + r' \newline } & '
+            + r'{\textsc{' + str(i+1) + r'} ' + verses_english[i] + r'}\\'
+        )
     ht.append(r'\end{longtable}')
     return ht
 
