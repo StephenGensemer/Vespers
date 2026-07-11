@@ -293,7 +293,7 @@ class VespersEnricher:
     def _prefix_tokens(s: str, n: int = 4) -> str:
         return " ".join(_norm_text(s).split()[:n])
     
-    from typing import Optional
+    from typing import List,Optional
 
     def _find_hymn_file(hymn_dir: str, hymn_key: str) -> Optional[str]:
         files = [f for f in os.listdir(hymn_dir) if f.lower().endswith(".txt")]
