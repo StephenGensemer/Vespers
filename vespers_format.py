@@ -5,6 +5,7 @@ import subprocess, re, fnmatch, os, time, pyphen
 import unicodedata
 from datetime import datetime
 
+
 def parse_universalis_ebook(filename,n_parts=14):
     sections = {}
     toc_end_marker = "Copyrights & acknowledgements"
@@ -144,11 +145,31 @@ def get_2nd_reading(parts):
         d['2resp'] = get_nonempty_lines(parts[i].split('Responsory')[1])
     return d
 
+
+def _norm_text(s):
+    return unicodedata.normalize("NFC", s).strip().casefold()
+
+
 def retrieve_hymn_text(d,hymn_dir):
-    fns = fnmatch.filter(os.listdir(hymn_dir),d['hymn']+'*')
-    if len(fns)>0:
-        with open(os.path.join(hymn_dir,fns[0]), 'r') as file:
-            d['hymn_text'] = [line.rstrip() for line in file]
+    target = _norm_text(d['hymn'])
+    files = os.listdir(hymn_dir)
+
+    match = None
+    for fn in files:
+        stem, _ = os.path.splitext(fn)
+        if _norm_text(stem) == target:
+            match = fn
+            break
+
+    if match is None:
+        for fn in files:
+            if _norm_text(fn).startswith(target):
+                match = fn
+                break
+
+    if match:
+        with open(os.path.join(hymn_dir,match), 'r', encoding='utf-8') as file:
+            d['hymn_text'] = [line.rstrip('\n') for line in file]
     else:
         print('hymn',d['hymn'],'not found')
     return d
@@ -282,15 +303,19 @@ def replace_text_simple(original_text, replacements):
 
 def format_hymn_tex(hymn_text):
     verses = split_list(hymn_text, '')
-    nv = int(len(verses)/2)
-    if nv*2!= len(verses): print('wrong number of verses!')
+    verses = [v for v in verses if any(line.strip() for line in v)]
+
+    nv = len(verses) // 2
+    if nv*2!= len(verses):
+        print(f'wrong number of verses! got {len(verses)} verse-blocks (expected even)')
+
     verses_latin = [r'\newline '.join(verse) for verse in verses[:nv]]
-    verses_english = [r'\newline '.join(verse) for verse in verses[nv:]]
+    verses_english = [r'\newline '.join(verse) for verse in verses[nv:nv*2]]
     ht = []
     ht.append(r'\begin{longtable}{>{\raggedright\arraybackslash}p{0.45\textwidth} >{\raggedright\arraybackslash}p{0.5\textwidth}}')
     for i in range(nv):
-        ht.append(r'{\textsc{'+str(i+1)+'} ' + verses_latin[i] + r' \newline '\
-                  + r'} & ' \
+        ht.append(r'{\textsc{'+str(i+1)+'} ' + verses_latin[i] + r' \newline '
+                  + r'} & '
                   + r'{\textsc{'+str(i+1)+r'} '+ verses_english[i] + r'}\\')
     ht.append(r'\end{longtable}')
     return ht
