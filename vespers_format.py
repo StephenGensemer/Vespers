@@ -2,7 +2,9 @@ import numpy as np
 import matplotlib.pyplot as plt
 import pandas as pd
 import subprocess, re, fnmatch, os, time, pyphen
+import unicodedata
 from datetime import datetime
+
 
 def parse_universalis_ebook(filename,n_parts=14):
     sections = {}
@@ -143,14 +145,93 @@ def get_2nd_reading(parts):
         d['2resp'] = get_nonempty_lines(parts[i].split('Responsory')[1])
     return d
 
-def retrieve_hymn_text(d,hymn_dir):
-    fns = fnmatch.filter(os.listdir(hymn_dir),d['hymn']+'*')
-    if len(fns)>0:
-        with open(os.path.join(hymn_dir,fns[0]), 'r') as file:
-            d['hymn_text'] = [line.rstrip() for line in file]
+
+def _norm_text(s):
+    """
+    Normalize text for robust filename/title matching:
+    - NFC compose
+    - strip
+    - casefold
+    - remove accents/diacritics
+    - collapse non-alnum to single spaces
+    """
+    if s is None:
+        return ""
+    s = unicodedata.normalize("NFC", s).strip().casefold()
+    s = unicodedata.normalize("NFD", s)
+    s = "".join(ch for ch in s if unicodedata.category(ch) != "Mn")
+    s = re.sub(r"[^0-9a-z]+", " ", s)
+    s = re.sub(r"\s+", " ", s).strip()
+    return s
+
+
+def _token_prefix(s, n=4):
+    toks = _norm_text(s).split()
+    return " ".join(toks[:n])
+
+
+def retrieve_hymn_text(d, hymn_dir):
+    """
+    Enrich d['hymn_text'] from hymn_dir using d['hymn'] as lookup key.
+    Matching strategy:
+      1) exact normalized stem == target
+      2) normalized prefix match (either direction)
+      3) token-prefix match on first 4 words (either direction)
+    """
+    # Guardrails
+    if "hymn" not in d or not d["hymn"]:
+        print("hymn key missing or empty; skipping hymn file lookup")
+        return d
+
+    target_raw = d["hymn"]
+    target = _norm_text(target_raw)
+    target_prefix = _token_prefix(target_raw, n=4)
+
+    try:
+        files = [fn for fn in os.listdir(hymn_dir) if fn.lower().endswith(".txt")]
+    except FileNotFoundError:
+        print(f"hymn directory not found: {hymn_dir}")
+        return d
+
+    match = None
+
+    # Pass 1: exact normalized stem
+    for fn in files:
+        stem, _ = os.path.splitext(fn)
+        if _norm_text(stem) == target:
+            match = fn
+            break
+
+    # Pass 2: normalized startswith either way
+    if match is None:
+        for fn in files:
+            stem, _ = os.path.splitext(fn)
+            stem_n = _norm_text(stem)
+            if stem_n.startswith(target) or target.startswith(stem_n):
+                match = fn
+                break
+
+    # Pass 3: first-N-token prefix either way
+    if match is None and target_prefix:
+        for fn in files:
+            stem, _ = os.path.splitext(fn)
+            stem_prefix = _token_prefix(stem, n=4)
+            if stem_prefix and (stem_prefix == target_prefix or
+                                stem_prefix.startswith(target_prefix) or
+                                target_prefix.startswith(stem_prefix)):
+                match = fn
+                break
+
+    if match:
+        hymn_path = os.path.join(hymn_dir, match)
+        with open(hymn_path, "r", encoding="utf-8") as file:
+            d["hymn_text"] = [line.rstrip("\n") for line in file]
+        print(f"Loaded hymn text from: {hymn_path}")
     else:
-        print('hymn',d['hymn'],'not found')
+        print(f'hymn "{d["hymn"]}" not found in {hymn_dir}')
+
     return d
+
 
 def format_dropcap(line):
     words = line.split()
@@ -282,7 +363,7 @@ def replace_text_simple(original_text, replacements):
 def format_hymn_tex(hymn_text):
     verses = split_list(hymn_text, '')
     nv = int(len(verses)/2)
-    if nv*2!= len(verses): print('wrong number of verses!')
+    if nv*2!= len(verses): print('found',len(verses),'wrong number of verses!')
     verses_latin = [r'\newline '.join(verse) for verse in verses[:nv]]
     verses_english = [r'\newline '.join(verse) for verse in verses[nv:]]
     ht = []
@@ -294,7 +375,8 @@ def format_hymn_tex(hymn_text):
     ht.append(r'\end{longtable}')
     return ht
 
-
+  
+    
 def split_list(input_list, separator):
     result = []
     current_sublist = []
@@ -314,11 +396,53 @@ def split_list(input_list, separator):
 
     return result
 
+def _normalize_for_match(text):
+    if not text:
+        return ""
+    nfd = unicodedata.normalize("NFD", text)
+    no_marks = "".join(ch for ch in nfd if unicodedata.category(ch) != "Mn")
+    lowered = no_marks.lower()
+    cleaned = re.sub(r"[^a-z0-9]+", "_", lowered)
+    return re.sub(r"_+", "_", cleaned).strip("_")
+
+def _first_phrase(antiphon_name):
+    match = re.match(r"([^,\.]+?)(?:[,\.]|$)", antiphon_name.strip())
+    if match:
+        return match.group(1).strip()
+    return antiphon_name.strip()
+
 def get_antiphon_tex(antiphon_dir,antiphon_name,handout=False,mag=False,determine_tone=False,hymn=False):
+    raw_name = antiphon_name
     antiphon_name = antiphon_name.replace(' ','_')
     antiphon_name = antiphon_name.replace(',','')
     antiphon_name = antiphon_name.replace(':','')
     fns = sorted(fnmatch.filter(os.listdir(antiphon_dir), antiphon_name+'*.gabc'))
+
+    # Fallback: normalized robust matching for Unicode composition / punctuation differences
+    if len(fns) == 0:
+        phrase = _first_phrase(raw_name)
+        phrase_norm = _normalize_for_match(phrase)
+        words = [w for w in phrase_norm.split('_') if w]
+        first_words = words[:4]
+
+        all_gabc = [fn for fn in os.listdir(antiphon_dir) if fn.endswith('.gabc')]
+        best_file = None
+        best_score = -1
+        for fn in all_gabc:
+            stem_norm = _normalize_for_match(os.path.splitext(fn)[0])
+            score = 0
+            if phrase_norm and phrase_norm in stem_norm:
+                score += 10
+            for w in first_words:
+                if w in stem_norm:
+                    score += 1
+            if score > best_score:
+                best_score = score
+                best_file = fn
+
+        if best_file and best_score >= max(2, len(first_words) // 2):
+            fns = [best_file]
+
     if len(fns)>0:
         ant_tone = fns[0].split('-')[-1].split('.')[0]
         if handout:
@@ -623,7 +747,7 @@ def make_vespers_handout_latex(d,header,fn_handout,psalm_dir,antiphon_dir):
             r'\textit{First reading}\\',
             r'\textbf{\Responsorium ' + response_text + r'}\\',
             r'\newcolumn', r'\textit{Prayers and Intercessions}\\',
-            r'\textbf{\Responsorium ' + resp_pandi + '}\\',
+            r'\textbf{\Responsorium ' + resp_pandi + '}',
             r'\end{multicols}'
         ]
 
