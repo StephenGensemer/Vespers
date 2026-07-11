@@ -361,7 +361,6 @@ def replace_text_simple(original_text, replacements):
 
 
 def format_hymn_tex(hymn_text):
-    print(hymn_text)
     verses = split_list(hymn_text, '')
     nv = int(len(verses)/2)
     if nv*2!= len(verses): print('found',len(verses),'wrong number of verses!')
