@@ -2,6 +2,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import pandas as pd
 import subprocess, re, fnmatch, os, time, pyphen
+import unicodedata
 from datetime import datetime
 
 def parse_universalis_ebook(filename,n_parts=14):
@@ -314,11 +315,53 @@ def split_list(input_list, separator):
 
     return result
 
+def _normalize_for_match(text):
+    if not text:
+        return ""
+    nfd = unicodedata.normalize("NFD", text)
+    no_marks = "".join(ch for ch in nfd if unicodedata.category(ch) != "Mn")
+    lowered = no_marks.lower()
+    cleaned = re.sub(r"[^a-z0-9]+", "_", lowered)
+    return re.sub(r"_+", "_", cleaned).strip("_")
+
+def _first_phrase(antiphon_name):
+    match = re.match(r"([^,\.]+?)(?:[,\.]|$)", antiphon_name.strip())
+    if match:
+        return match.group(1).strip()
+    return antiphon_name.strip()
+
 def get_antiphon_tex(antiphon_dir,antiphon_name,handout=False,mag=False,determine_tone=False,hymn=False):
+    raw_name = antiphon_name
     antiphon_name = antiphon_name.replace(' ','_')
     antiphon_name = antiphon_name.replace(',','')
     antiphon_name = antiphon_name.replace(':','')
     fns = sorted(fnmatch.filter(os.listdir(antiphon_dir), antiphon_name+'*.gabc'))
+
+    # Fallback: normalized robust matching for Unicode composition / punctuation differences
+    if len(fns) == 0:
+        phrase = _first_phrase(raw_name)
+        phrase_norm = _normalize_for_match(phrase)
+        words = [w for w in phrase_norm.split('_') if w]
+        first_words = words[:4]
+
+        all_gabc = [fn for fn in os.listdir(antiphon_dir) if fn.endswith('.gabc')]
+        best_file = None
+        best_score = -1
+        for fn in all_gabc:
+            stem_norm = _normalize_for_match(os.path.splitext(fn)[0])
+            score = 0
+            if phrase_norm and phrase_norm in stem_norm:
+                score += 10
+            for w in first_words:
+                if w in stem_norm:
+                    score += 1
+            if score > best_score:
+                best_score = score
+                best_file = fn
+
+        if best_file and best_score >= max(2, len(first_words) // 2):
+            fns = [best_file]
+
     if len(fns)>0:
         ant_tone = fns[0].split('-')[-1].split('.')[0]
         if handout:
@@ -623,7 +666,7 @@ def make_vespers_handout_latex(d,header,fn_handout,psalm_dir,antiphon_dir):
             r'\textit{First reading}\\',
             r'\textbf{\Responsorium ' + response_text + r'}\\',
             r'\newcolumn', r'\textit{Prayers and Intercessions}\\',
-            r'\textbf{\Responsorium ' + resp_pandi + '}\\',
+            r'\textbf{\Responsorium ' + resp_pandi + '}',
             r'\end{multicols}'
         ]
 
