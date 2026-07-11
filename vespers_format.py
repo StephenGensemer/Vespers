@@ -147,32 +147,91 @@ def get_2nd_reading(parts):
 
 
 def _norm_text(s):
-    return unicodedata.normalize("NFC", s).strip().casefold()
+    """
+    Normalize text for robust filename/title matching:
+    - NFC compose
+    - strip
+    - casefold
+    - remove accents/diacritics
+    - collapse non-alnum to single spaces
+    """
+    if s is None:
+        return ""
+    s = unicodedata.normalize("NFC", s).strip().casefold()
+    s = unicodedata.normalize("NFD", s)
+    s = "".join(ch for ch in s if unicodedata.category(ch) != "Mn")
+    s = re.sub(r"[^0-9a-z]+", " ", s)
+    s = re.sub(r"\s+", " ", s).strip()
+    return s
 
 
-def retrieve_hymn_text(d,hymn_dir):
-    target = _norm_text(d['hymn'])
-    files = os.listdir(hymn_dir)
+def _token_prefix(s, n=4):
+    toks = _norm_text(s).split()
+    return " ".join(toks[:n])
+
+
+def retrieve_hymn_text(d, hymn_dir):
+    """
+    Enrich d['hymn_text'] from hymn_dir using d['hymn'] as lookup key.
+    Matching strategy:
+      1) exact normalized stem == target
+      2) normalized prefix match (either direction)
+      3) token-prefix match on first 4 words (either direction)
+    """
+    # Guardrails
+    if "hymn" not in d or not d["hymn"]:
+        print("hymn key missing or empty; skipping hymn file lookup")
+        return d
+
+    target_raw = d["hymn"]
+    target = _norm_text(target_raw)
+    target_prefix = _token_prefix(target_raw, n=4)
+
+    try:
+        files = [fn for fn in os.listdir(hymn_dir) if fn.lower().endswith(".txt")]
+    except FileNotFoundError:
+        print(f"hymn directory not found: {hymn_dir}")
+        return d
 
     match = None
+
+    # Pass 1: exact normalized stem
     for fn in files:
         stem, _ = os.path.splitext(fn)
         if _norm_text(stem) == target:
             match = fn
             break
 
+    # Pass 2: normalized startswith either way
     if match is None:
         for fn in files:
-            if _norm_text(fn).startswith(target):
+            stem, _ = os.path.splitext(fn)
+            stem_n = _norm_text(stem)
+            if stem_n.startswith(target) or target.startswith(stem_n):
+                match = fn
+                break
+
+    # Pass 3: first-N-token prefix either way
+    if match is None and target_prefix:
+        for fn in files:
+            stem, _ = os.path.splitext(fn)
+            stem_prefix = _token_prefix(stem, n=4)
+            if stem_prefix and (stem_prefix == target_prefix or
+                                stem_prefix.startswith(target_prefix) or
+                                target_prefix.startswith(stem_prefix)):
                 match = fn
                 break
 
     if match:
-        with open(os.path.join(hymn_dir,match), 'r', encoding='utf-8') as file:
-            d['hymn_text'] = [line.rstrip('\n') for line in file]
+        hymn_path = os.path.join(hymn_dir, match)
+        with open(hymn_path, "r", encoding="utf-8") as file:
+            d["hymn_text"] = [line.rstrip("\n") for line in file]
+        print(f"Loaded hymn text from: {hymn_path}")
     else:
-        print('hymn',d['hymn'],'not found')
+        print(f'hymn "{d["hymn"]}" not found in {hymn_dir}')
+
     return d
+
 
 def format_dropcap(line):
     words = line.split()
