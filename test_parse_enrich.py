@@ -10,11 +10,15 @@ Output:
 """
 
 import argparse
+from pathlib import Path
 
 from vespers_format import parse_universalis_ebook
 from vespers_parser import parse_vespers_text
 from vespers_enricher import VespersEnricher
 from vespers_renderer import VespersRenderer
+
+
+REPO_ROOT = Path(__file__).resolve().parent
 
 
 def build_handout(all_services_path: str, all_readings_path: str, service_name: str) -> str:
@@ -34,7 +38,11 @@ def build_handout(all_services_path: str, all_readings_path: str, service_name: 
         all_readings[service_name],
     )
 
-    enricher = VespersEnricher('.', 'antiphons')
+    psalm_dir = str(REPO_ROOT)
+    antiphon_dir = str(REPO_ROOT / 'antiphons')
+    header_file = str(REPO_ROOT / 'header.tex')
+
+    enricher = VespersEnricher(psalm_dir, antiphon_dir)
     service = enricher.enrich(service)
 
     d = {
@@ -61,8 +69,8 @@ def build_handout(all_services_path: str, all_readings_path: str, service_name: 
         'name': service.name,
     }
 
-    renderer = VespersRenderer(header_file="header.tex")
-    handout_lines = renderer.render_handout_lines(d, '.', 'antiphons')
+    renderer = VespersRenderer(header_file=header_file)
+    handout_lines = renderer.render_handout_lines(d, psalm_dir, antiphon_dir)
 
     output_file = f"{service_name}_handout.tex"
     with open(output_file, 'w') as f:
