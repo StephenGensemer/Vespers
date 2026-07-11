@@ -302,10 +302,26 @@ def replace_text_simple(original_text, replacements):
 
 
 def format_hymn_tex(hymn_text):
-    # Split into blocks separated by blank (or whitespace-only) lines
+    # Normalize input to a list of lines
+    if isinstance(hymn_text, str):
+        lines = hymn_text.splitlines()
+    elif isinstance(hymn_text, list):
+        if len(hymn_text) == 1 and isinstance(hymn_text[0], str) and "\n" in hymn_text[0]:
+            lines = hymn_text[0].splitlines()
+        else:
+            lines = []
+            for item in hymn_text:
+                if isinstance(item, str):
+                    lines.extend(item.splitlines())
+                else:
+                    lines.append(str(item))
+    else:
+        lines = str(hymn_text).splitlines()
+
+    # Split into stanza blocks by blank/whitespace-only lines
     verses = []
     cur = []
-    for line in hymn_text:
+    for line in lines:
         if line.strip() == "":
             if cur:
                 verses.append(cur)
@@ -318,22 +334,23 @@ def format_hymn_tex(hymn_text):
     nv = len(verses) // 2
     if nv * 2 != len(verses):
         print(f'wrong number of verses! got {len(verses)} verse-blocks (expected even)')
-        # Keep going with best effort: pair what we can
-        nv = min(nv, len(verses) - nv)
+        # best effort pairing
+        n_pairs = min(nv, len(verses) - nv)
+    else:
+        n_pairs = nv
 
-    verses_latin = [r'\newline '.join(verse) for verse in verses[:nv]]
-    verses_english = [r'\newline '.join(verse) for verse in verses[nv:nv*2]]
+    verses_latin = [r'\newline '.join(v) for v in verses[:n_pairs]]
+    verses_english = [r'\newline '.join(v) for v in verses[nv:nv + n_pairs]]
 
     ht = []
     ht.append(r'\begin{longtable}{>{\raggedright\arraybackslash}p{0.45\textwidth} >{\raggedright\arraybackslash}p{0.5\textwidth}}')
-    for i in range(min(len(verses_latin), len(verses_english))):
+    for i in range(n_pairs):
         ht.append(
-            r'{\textsc{' + str(i+1) + '} ' + verses_latin[i] + r' \newline } & '
-            + r'{\textsc{' + str(i+1) + r'} ' + verses_english[i] + r'}\\'
+            r'{\textsc{' + str(i + 1) + '} ' + verses_latin[i] + r' \newline } & '
+            + r'{\textsc{' + str(i + 1) + r'} ' + verses_english[i] + r'}\\'
         )
     ht.append(r'\end{longtable}')
     return ht
-
 
 def split_list(input_list, separator):
     result = []
